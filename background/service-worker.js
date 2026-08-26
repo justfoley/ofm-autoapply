@@ -1,4 +1,4 @@
-import { loadState, saveState } from '../lib/storage.js';
+import { loadState, saveState, STORAGE_KEY } from '../lib/storage.js';
 import { partitionBySeen } from '../lib/dedupe.js';
 import { filterByCategory } from '../lib/category-filter.js';
 import { createLogEntry, appendLogEntry } from '../lib/log.js';
@@ -24,11 +24,19 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onStartup.addListener(syncAlarm);
 
-// The popup flips masterEnabled/selectedCategories directly in storage; react
-// here so the alarm is (de)registered immediately rather than waiting for the
-// next browser restart.
+// The popup flips masterEnabled directly in storage; react here so the alarm
+// is (de)registered immediately rather than waiting for the next browser
+// restart. Only re-sync on an actual masterEnabled flip, not on every state
+// write - pollFeed() itself calls saveState() at the end of every cycle, and
+// chrome.alarms.create() restarts the periodic timer from "now", so reacting
+// to those saves too would drift the poll interval later with each cycle.
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes[Object.keys(changes)[0]] !== undefined) {
+  if (area !== 'local') return;
+  const change = changes[STORAGE_KEY];
+  if (!change) return;
+  const wasEnabled = Boolean(change.oldValue && change.oldValue.masterEnabled);
+  const isEnabled = Boolean(change.newValue && change.newValue.masterEnabled);
+  if (wasEnabled !== isEnabled) {
     syncAlarm();
   }
 });
@@ -42,10 +50,22 @@ async function syncAlarm() {
   }
 }
 
+// Guards against a poll cycle still running (each apply opens a tab,
+// navigates, and sleeps ~800ms, sequentially, per matching posting) when the
+// next alarm fires. Without this, two overlapping pollFeed() calls would both
+// read the same stale seenIds and could double-apply to the same posting,
+// with whichever saveState() finishes last silently discarding the other's
+// updates.
+let pollInProgress = false;
+
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM_NAME) {
-    pollFeed().catch((err) => console.warn('[ofm-autoapply] poll cycle failed', err));
-  }
+  if (alarm.name !== ALARM_NAME || pollInProgress) return;
+  pollInProgress = true;
+  pollFeed()
+    .catch((err) => console.warn('[ofm-autoapply] poll cycle failed', err))
+    .finally(() => {
+      pollInProgress = false;
+    });
 });
 
 /**
