@@ -1,0 +1,10 @@
+{
+  "name": "ofm-autoapply",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome MV3 extension that auto-applies to new ofmjobs.com postings in categories the captain selects.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
