@@ -1,5 +1,11 @@
 import { loadState, saveState } from '../lib/storage.js';
 
+const BADGE_LABELS = {
+  applied: 'Applied',
+  'applied-unconfirmed': 'Applied (unconfirmed)',
+  'needs-manual': 'Needs manual',
+};
+
 const masterToggle = document.getElementById('master-toggle');
 const masterToggleLabel = document.getElementById('master-toggle-label');
 const categoryList = document.getElementById('category-list');
@@ -81,7 +87,7 @@ function buildLogEntryElement(entry) {
 
   const badge = document.createElement('span');
   badge.className = `badge ${entry.outcome}`;
-  badge.textContent = entry.outcome === 'applied' ? 'Applied' : 'Needs manual';
+  badge.textContent = BADGE_LABELS[entry.outcome] || entry.outcome;
 
   const meta = document.createElement('span');
   meta.className = 'meta';

@@ -24,23 +24,28 @@ test('creates a log entry carrying title/categories/url/timestamp', () => {
 test('includes a reason field only when one is given', () => {
   const withReason = createLogEntry({
     posting,
-    outcome: 'skipped-manual',
+    outcome: 'needs-manual',
     timestamp: 't',
-    reason: 'requires-tests-or-questions',
+    reason: 'apply-button-not-found',
   });
-  assert.equal(withReason.reason, 'requires-tests-or-questions');
+  assert.equal(withReason.reason, 'apply-button-not-found');
 
   const withoutReason = createLogEntry({ posting, outcome: 'applied', timestamp: 't' });
   assert.equal('reason' in withoutReason, false);
 });
 
-test('rejects an outcome other than applied/skipped-manual', () => {
+test('accepts applied-unconfirmed as a valid outcome', () => {
+  const entry = createLogEntry({ posting, outcome: 'applied-unconfirmed', timestamp: 't' });
+  assert.equal(entry.outcome, 'applied-unconfirmed');
+});
+
+test('rejects an outcome outside applied/applied-unconfirmed/needs-manual', () => {
   assert.throws(() => createLogEntry({ posting, outcome: 'bogus' }), /Invalid log outcome/);
 });
 
 test('appendLogEntry prepends newest-first without mutating the input array', () => {
   const first = createLogEntry({ posting, outcome: 'applied', timestamp: 't1' });
-  const second = createLogEntry({ posting: { ...posting, id: 'b' }, outcome: 'skipped-manual', timestamp: 't2' });
+  const second = createLogEntry({ posting: { ...posting, id: 'b' }, outcome: 'needs-manual', timestamp: 't2' });
 
   const afterFirst = appendLogEntry([], first);
   const afterSecond = appendLogEntry(afterFirst, second);

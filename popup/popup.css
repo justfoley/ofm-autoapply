@@ -124,7 +124,12 @@ h2 {
   color: #1a7a2e;
 }
 
-.badge.skipped-manual {
+.badge.applied-unconfirmed {
+  background: #e0edff;
+  color: #1d4ed8;
+}
+
+.badge.needs-manual {
   background: #ffe8d6;
   color: #a45319;
 }

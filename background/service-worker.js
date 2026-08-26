@@ -50,9 +50,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 /**
  * One polling cycle: fetch the feed, dedupe against previously-seen postings,
- * filter to checked categories, and attempt to apply. Every posting acted on
- * (applied or skipped-manual) is added to seenIds so it is never re-evaluated,
- * even across browser restarts (seenIds lives in chrome.storage.local).
+ * filter to checked categories, and attempt to apply. Every matching posting
+ * (applied, applied-unconfirmed, or needs-manual - see lib/log.js) is added
+ * to seenIds so it is never re-evaluated, even across browser restarts
+ * (seenIds lives in chrome.storage.local).
  */
 export async function pollFeed() {
   const state = await loadState();
@@ -103,11 +104,11 @@ export async function pollFeed() {
     let reason;
     try {
       const result = await applyToPosting(posting);
-      outcome = result.status === 'applied' ? 'applied' : 'skipped-manual';
+      outcome = result.status;
       reason = result.reason;
     } catch (err) {
-      console.warn('[ofm-autoapply] apply attempt failed, logging as skipped-manual:', err);
-      outcome = 'skipped-manual';
+      console.warn('[ofm-autoapply] apply attempt failed, logging as needs-manual:', err);
+      outcome = 'needs-manual';
       reason = 'unexpected-error';
     }
 

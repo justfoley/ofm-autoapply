@@ -2,12 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseJobCard } from '../lib/posting-parser.js';
 
-test('parses a card with multiple categories and tests+questions requirements', () => {
+test('parses a card with multiple categories', () => {
   const posting = parseJobCard({
     href: '/dashboard/jobs/01a03fe7-bc67-713b-a9f8-d6d11c025a1e',
     ariaLabel: 'View Reddit Virtual Assistant',
     categoryTexts: ['Reddit Marketer', 'Virtual Assistant'],
-    requirementTexts: ['What this job requires', '2 tests', '2 questions', '1 language', '1 tool'],
   });
 
   assert.deepEqual(posting, {
@@ -15,40 +14,16 @@ test('parses a card with multiple categories and tests+questions requirements', 
     title: 'Reddit Virtual Assistant',
     categories: ['Reddit Marketer', 'Virtual Assistant'],
     url: 'https://ofmjobs.com/dashboard/jobs/01a03fe7-bc67-713b-a9f8-d6d11c025a1e',
-    requirements: { tests: 2, questions: 2 },
   });
 });
 
-test('parses singular requirement badges ("1 test", "1 question")', () => {
-  const posting = parseJobCard({
-    href: '/dashboard/jobs/01a03fe7-bc67-713b-a9f8-d6d11c025a1e',
-    ariaLabel: 'View Reddit Manager',
-    categoryTexts: ['Reddit Marketer'],
-    requirementTexts: ['1 test', '2 questions', '1 language', '3 tools'],
-  });
-
-  assert.deepEqual(posting.requirements, { tests: 1, questions: 2 });
-});
-
-test('defaults requirements to zero when there are no test/question badges', () => {
+test('defaults to no categories when none are given', () => {
   const posting = parseJobCard({
     href: '/dashboard/jobs/01a03fe7-bc67-713b-a9f8-d6d11c025a1e',
     ariaLabel: 'View OnlyFans Chatter',
-    categoryTexts: ['OnlyFans Chatter'],
-    requirementTexts: ['1 language', '4 tools'],
   });
 
-  assert.deepEqual(posting.requirements, { tests: 0, questions: 0 });
-});
-
-test('defaults requirements to zero when no accordion was present at all', () => {
-  const posting = parseJobCard({
-    href: '/dashboard/jobs/01a03fe7-bc67-713b-a9f8-d6d11c025a1e',
-    ariaLabel: 'View OnlyFans Chatter',
-    categoryTexts: ['OnlyFans Chatter'],
-  });
-
-  assert.deepEqual(posting.requirements, { tests: 0, questions: 0 });
+  assert.deepEqual(posting.categories, []);
 });
 
 test('returns null for a link whose href is not a posting detail URL (e.g. the "saved jobs" nav link)', () => {

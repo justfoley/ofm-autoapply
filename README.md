@@ -4,15 +4,21 @@ Chrome (Manifest V3) extension that watches the ofmjobs.com job feed and
 auto-applies to new postings in categories the captain selects, while they
 stay logged into ofmjobs.com in their normal browser profile.
 
-## Status: feed/apply implemented from a DOM dump, not live browser testing
+## Status: feed/apply implemented from a DOM dump + captain-confirmed click behavior
 
 `chrome-devtools-axi` never had a working Chrome install in this build
 environment, so the real feed and apply flow could not be inspected live.
-Instead, the captain supplied an authenticated, static DOM dump of the
-dashboard "find jobs" page, which is real evidence but incomplete - it can't
-show interaction (what happens after a click) or content behind a closed
-dropdown. Everything below is built from that dump; anything not directly
-observable in it is called out explicitly rather than guessed at.
+Instead:
+
+1. The captain supplied an authenticated, static DOM dump of the dashboard
+   "find jobs" page (real evidence, but static - no interaction).
+2. The captain then clicked Apply on a real posting and confirmed (relayed
+   via firstmate) what happens: **it submits immediately, in place - no
+   confirmation modal, no form.** Whether the captain is qualified for that
+   posting is decided server-side and isn't visible to the client.
+
+Everything below is built from that evidence; anything not directly
+confirmed is called out explicitly rather than guessed at.
 
 - Background service worker (`background/service-worker.js`) using
   `chrome.alarms` (not a page-resident timer) for 60-second polling that
@@ -26,12 +32,14 @@ observable in it is called out explicitly rather than guessed at.
   client-rendered page with no confirmed public JSON API. Parsing the raw
   scrape into postings is pure and unit-tested (`lib/posting-parser.js`).
 - Apply (`lib/apply.js`): finds the posting's job card and clicks its inline
-  Apply button, gated by a pre-click eligibility check
+  Apply button - that's the complete action. The pre-click eligibility check
+  and post-click outcome interpretation are pure, unit-tested logic
   (`lib/apply-eligibility.js`).
 - Popup UI (`popup/`) with the master toggle, category checkboxes (populated
-  from `state.knownCategories`, not a fixed list), and the activity log.
+  from `state.knownCategories`, not a fixed list), and the activity log,
+  showing three possible outcomes per posting (see below).
 
-## What the DOM dump confirmed
+## What was confirmed
 
 Reference dump: `data/ofm-autoapply-1/reference/find-jobs-page.html` relative
 to the firstmate repo root (outside this repo - read-only, not committed).
@@ -43,10 +51,9 @@ to the firstmate repo root (outside this repo - read-only, not committed).
     can carry multiple categories at once (observed e.g. "Reddit Marketer" +
     "Virtual Assistant" on the same card). `lib/category-filter.js` matches
     if *any* of a posting's categories is checked.
-  - An inline `<button>` containing the text "Apply" (plus a lock icon) -
-    clicking it does not require navigating away first.
-  - A "What this job requires" accordion listing counts of tests, questions,
-    languages, and tools the application needs.
+  - An inline `<button>` whose text starts with "Apply" (also true once
+    relabeled "Applied") - clicking it does not require navigating away
+    first, and submits the application immediately with no modal or form.
 - **Category taxonomy correction**: the brief's list (Chatters, Chatting
   Managers, Marketing VAs, ...) came from the public marketing homepage and
   does **not** match the real per-posting values. The 9 values actually
@@ -58,18 +65,21 @@ to the firstmate repo root (outside this repo - read-only, not committed).
   dump was captured), so the popup's checkbox list is the union of this seed
   plus `state.knownCategories`, which grows automatically as real postings
   are observed - see `background/service-worker.js`.
-- **Apply-eligibility judgment call** (`lib/apply-eligibility.js`): every one
-  of the ~18 sampled postings required at least 1 language and 1 tool, but
-  only about half additionally required tests/questions. Gating on
-  language/tool too would mean the extension never auto-applies to anything,
-  so only tests/questions (most plausibly free-response/assessment content)
-  are treated as blocking - a posting requiring either is logged
-  `skipped-manual` with reason `requires-tests-or-questions` *before* Apply
-  is ever clicked. Language/tool requirements are assumed, not confirmed, to
-  be profile-matched rather than requiring new input at apply time. **This is
-  a reversible judgment call, not a confirmed fact - revisit if wrong.**
+- **Apply outcome, three states** (`lib/log.js`, `lib/apply-eligibility.js`):
+  - `applied` - clicked, and the DOM confirmed it: the card left the feed, or
+    its Apply button became disabled or was relabeled (e.g. "Applied").
+  - `applied-unconfirmed` - clicked, but no DOM confirmation was observed.
+    Reported honestly rather than assumed successful - the captain's own
+    account activity is the real source of truth for these.
+  - `needs-manual` - never clicked, because the extension couldn't safely act
+    from the DOM alone: no Apply button on the card, the button already
+    looked applied/disabled, or the posting wasn't found on the page at all.
+  Note what this deliberately does **not** gate on: whether a posting looks
+  "hard" to qualify for (tests, screening questions, etc.) - that judgment is
+  server-side and invisible to the client, so it happens after every click,
+  not before it.
 
-## Still unconfirmed
+## Still open (documented assumptions, not blocking)
 
 - **The feed page's own URL.** Only the *rendered content* of the dashboard
   jobs page was captured, not its address bar. `lib/feed.js`'s `FEED_URL`
@@ -77,15 +87,8 @@ to the firstmate repo root (outside this repo - read-only, not committed).
   URL convention (`/dashboard/jobs/{uuid}`) under a standard
   collection-root-lists pattern - not directly observed. If wrong, polling
   will safely find zero job cards and warn, not crash or misbehave.
-- **What happens after clicking Apply.** Firstmate is relaying what the
-  captain sees after a real click; not yet received. `lib/apply.js`
-  currently checks for a `[role="dialog"]` appearing within 1.5s of the click
-  (the app is confirmed to use Radix UI elsewhere, whose dialogs follow that
-  pattern) and treats that as `needs-manual`; no dialog is treated as
-  `applied`. This is a placeholder heuristic, clearly marked `TODO` in code,
-  pending the real answer.
-- **Whether language/tool requirements truly need no extra input at apply
-  time** - see the judgment call above.
+- **The full category taxonomy** - see the correction above; the popup's list
+  self-corrects over time rather than staying frozen on the 9-value sample.
 
 ## Load unpacked in Chrome
 
@@ -114,6 +117,6 @@ mock of the `chrome.storage.local` promise API - no live DOM needed since
 DOM-walking is isolated to thin, untested shims in `lib/feed.js` and
 `lib/apply.js` that run inside a real tab via `chrome.scripting`).
 
-Full live-site DOM interaction (the real feed URL, the real post-Apply
-outcome) is not something these automated tests can safely cover - see
-"Still unconfirmed" above.
+Full live-site DOM interaction (the real feed URL, exact card markup at
+click time) is not something these automated tests can safely cover - see
+"Still open" above.
