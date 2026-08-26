@@ -110,12 +110,17 @@ card → **service worker** (under "Inspect views").
 npm test
 ```
 
-Runs the unit test suite (Node's built-in test runner, `node --test`) over
-`lib/dedupe.js`, `lib/category-filter.js`, `lib/log.js`, `lib/storage.js`,
-`lib/posting-parser.js`, and `lib/apply-eligibility.js` (using an in-memory
-mock of the `chrome.storage.local` promise API - no live DOM needed since
-DOM-walking is isolated to thin, untested shims in `lib/feed.js` and
-`lib/apply.js` that run inside a real tab via `chrome.scripting`).
+Runs the unit test suite (Node's built-in test runner, `node
+--experimental-test-module-mocks --test`) over `lib/dedupe.js`,
+`lib/category-filter.js`, `lib/log.js`, `lib/storage.js`,
+`lib/posting-parser.js`, `lib/apply-eligibility.js`, and
+`background/service-worker.js`'s polling orchestration (in-flight guard,
+alarm resync) - using an in-memory mock of the `chrome.storage.local` and
+`chrome.alarms` promise APIs, plus `node:test`'s module mocking for
+`lib/feed.js`/`lib/apply.js` (hence the `--experimental-test-module-mocks`
+flag). No live DOM needed since DOM-walking is isolated to thin, untested
+shims in `lib/feed.js` and `lib/apply.js` that run inside a real tab via
+`chrome.scripting`.
 
 Full live-site DOM interaction (the real feed URL, exact card markup at
 click time) is not something these automated tests can safely cover - see
