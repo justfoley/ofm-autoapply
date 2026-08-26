@@ -2,18 +2,36 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createLogEntry, appendLogEntry, LOG_MAX_ENTRIES } from '../lib/log.js';
 
-const posting = { id: 'a', title: 'Chat Support Rep', category: 'Chatters', url: 'https://ofmjobs.com/jobs/a' };
+const posting = {
+  id: 'a',
+  title: 'Chat Support Rep',
+  categories: ['OnlyFans Chatter', 'Virtual Assistant'],
+  url: 'https://ofmjobs.com/dashboard/jobs/a',
+};
 
-test('creates a log entry carrying title/category/url/timestamp', () => {
+test('creates a log entry carrying title/categories/url/timestamp', () => {
   const entry = createLogEntry({ posting, outcome: 'applied', timestamp: '2026-08-26T00:00:00.000Z' });
   assert.deepEqual(entry, {
     id: 'a',
     title: 'Chat Support Rep',
-    category: 'Chatters',
-    url: 'https://ofmjobs.com/jobs/a',
+    categories: ['OnlyFans Chatter', 'Virtual Assistant'],
+    url: 'https://ofmjobs.com/dashboard/jobs/a',
     outcome: 'applied',
     timestamp: '2026-08-26T00:00:00.000Z',
   });
+});
+
+test('includes a reason field only when one is given', () => {
+  const withReason = createLogEntry({
+    posting,
+    outcome: 'skipped-manual',
+    timestamp: 't',
+    reason: 'requires-tests-or-questions',
+  });
+  assert.equal(withReason.reason, 'requires-tests-or-questions');
+
+  const withoutReason = createLogEntry({ posting, outcome: 'applied', timestamp: 't' });
+  assert.equal('reason' in withoutReason, false);
 });
 
 test('rejects an outcome other than applied/skipped-manual', () => {

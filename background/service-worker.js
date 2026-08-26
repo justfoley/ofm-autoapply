@@ -62,15 +62,26 @@ export async function pollFeed() {
   try {
     postings = await getFeedPostings();
   } catch (err) {
-    // Expected until lib/feed.js's real implementation lands - see that
-    // file's header. Warn, don't throw, so this never surfaces as a console
-    // error in the extension's service-worker inspector.
+    // Feed fetch opens/scrapes/closes a hidden tab (see lib/feed.js) - can
+    // genuinely fail (e.g. navigation error, session expired). Warn, don't
+    // throw, so a bad cycle never surfaces as a console error and just
+    // retries next alarm.
     console.warn('[ofm-autoapply] feed unavailable this cycle:', err.message);
     return;
   }
 
+  // Grow the known-category list from every posting seen this cycle
+  // (matched or not), not just acted-on ones - see lib/storage.js.
+  const knownCategories = new Set(state.knownCategories);
+  for (const posting of postings) {
+    for (const category of posting.categories) knownCategories.add(category);
+  }
+
   const { unseen } = partitionBySeen(postings, state.seenIds);
-  if (unseen.length === 0) return;
+  if (unseen.length === 0) {
+    await saveState({ ...state, knownCategories: [...knownCategories] });
+    return;
+  }
 
   const matchingIds = new Set(filterByCategory(unseen, state.selectedCategories).map((p) => p.id));
 
@@ -89,17 +100,20 @@ export async function pollFeed() {
     }
 
     let outcome;
+    let reason;
     try {
       const result = await applyToPosting(posting);
       outcome = result.status === 'applied' ? 'applied' : 'skipped-manual';
+      reason = result.reason;
     } catch (err) {
       console.warn('[ofm-autoapply] apply attempt failed, logging as skipped-manual:', err);
       outcome = 'skipped-manual';
+      reason = 'unexpected-error';
     }
 
-    log = appendLogEntry(log, createLogEntry({ posting, outcome }));
+    log = appendLogEntry(log, createLogEntry({ posting, outcome, reason }));
     seenIds.push(posting.id);
   }
 
-  await saveState({ ...state, seenIds, log });
+  await saveState({ ...state, seenIds, log, knownCategories: [...knownCategories] });
 }

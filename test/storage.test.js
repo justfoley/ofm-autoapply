@@ -33,9 +33,19 @@ test('saveState then loadState round-trips the full state', async () => {
   const area = createMockStorageArea();
   const written = {
     masterEnabled: true,
-    selectedCategories: ['Chatters'],
+    selectedCategories: ['OnlyFans Chatter'],
+    knownCategories: ['OnlyFans Chatter', 'Reddit Marketer'],
     seenIds: ['a', 'b'],
-    log: [{ id: 'a', title: 'T', category: 'Chatters', url: 'https://x', outcome: 'applied', timestamp: 't' }],
+    log: [
+      {
+        id: 'a',
+        title: 'T',
+        categories: ['OnlyFans Chatter'],
+        url: 'https://x',
+        outcome: 'applied',
+        timestamp: 't',
+      },
+    ],
   };
 
   await saveState(written, area);
@@ -49,6 +59,7 @@ test('loadState merges stored partial state over defaults (forward-compat with n
   const state = await loadState(area);
   assert.equal(state.masterEnabled, true);
   assert.deepEqual(state.selectedCategories, []);
+  assert.deepEqual(state.knownCategories, getDefaultState().knownCategories);
   assert.deepEqual(state.seenIds, []);
   assert.deepEqual(state.log, []);
 });

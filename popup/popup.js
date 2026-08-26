@@ -1,5 +1,4 @@
 import { loadState, saveState } from '../lib/storage.js';
-import { DEFAULT_CATEGORIES } from '../lib/categories.js';
 
 const masterToggle = document.getElementById('master-toggle');
 const masterToggleLabel = document.getElementById('master-toggle-label');
@@ -16,7 +15,7 @@ async function init() {
   masterToggleLabel.textContent = state.masterEnabled ? 'On' : 'Off';
   masterToggle.addEventListener('change', onMasterToggleChange);
 
-  renderCategories(state.selectedCategories);
+  renderCategories(state.knownCategories, state.selectedCategories);
   renderLog(state.log);
 }
 
@@ -27,11 +26,11 @@ async function onMasterToggleChange(event) {
   await saveState({ ...state, masterEnabled });
 }
 
-function renderCategories(selectedCategories) {
+function renderCategories(knownCategories, selectedCategories) {
   const selected = new Set(selectedCategories);
   categoryList.replaceChildren();
 
-  for (const category of DEFAULT_CATEGORIES) {
+  for (const category of [...knownCategories].sort((a, b) => a.localeCompare(b))) {
     const li = document.createElement('li');
     const label = document.createElement('label');
 
@@ -86,7 +85,9 @@ function buildLogEntryElement(entry) {
 
   const meta = document.createElement('span');
   meta.className = 'meta';
-  meta.textContent = `${entry.category} • ${formatTimestamp(entry.timestamp)}`;
+  const categoryText = entry.categories && entry.categories.length ? entry.categories.join(', ') : 'Uncategorized';
+  const reasonText = entry.reason ? ` (${entry.reason})` : '';
+  meta.textContent = `${categoryText} • ${formatTimestamp(entry.timestamp)}${reasonText}`;
 
   li.append(title, badge, meta);
   return li;
