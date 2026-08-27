@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ofm-autoapply</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>ofm-autoapply</h1>
+      <label class="toggle" title="Fully pauses polling and auto-apply without uninstalling">
+        <input type="checkbox" id="master-toggle" />
+        <span id="master-toggle-label">Off</span>
+      </label>
+    </header>
+
+    <section id="not-implemented-banner" class="banner">
+      ofmjobs.com integration is based on a DOM dump, not live browser
+      testing (see README "Still open"). The feed page's exact URL is
+      inferred, not confirmed - review the activity log closely after
+      turning this on, especially any "Applied (unconfirmed)" entries.
+    </section>
+
+    <section>
+      <h2>Categories to auto-apply to</h2>
+      <p class="hint">A posting only triggers auto-apply when its category is checked here.</p>
+      <ul id="category-list" class="category-list"></ul>
+    </section>
+
+    <section>
+      <h2>Activity log</h2>
+      <p id="log-empty" class="hint" hidden>No activity yet.</p>
+      <ul id="log-list" class="log-list"></ul>
+    </section>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
