@@ -4,6 +4,30 @@ import { filterByCategory } from '../lib/category-filter.js';
 import { createLogEntry, appendLogEntry } from '../lib/log.js';
 import { getFeedPostings } from '../lib/feed.js';
 import { applyToPosting } from '../lib/apply.js';
+import { getDefaultActivity, saveActivity } from '../lib/activity.js';
+
+// Content script that renders the ofmjobs.com tab overlay/corner indicator
+// (content/overlay.js) is declared in manifest.json so it auto-injects into
+// tabs that load/reload after install. That declarative registration does
+// NOT reach tabs already open at install/update time, so this also injects
+// it into any such tabs directly. Best-effort: a tab that isn't ready yet or
+// isn't injectable just misses the overlay until its next navigation, which
+// is not worth failing over.
+const OVERLAY_CONTENT_SCRIPT = 'content/overlay.js';
+
+async function injectOverlayIntoOpenTabs() {
+  let tabs;
+  try {
+    tabs = await chrome.tabs.query({ url: 'https://ofmjobs.com/*' });
+  } catch {
+    return;
+  }
+  await Promise.all(
+    tabs.map((tab) =>
+      chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [OVERLAY_CONTENT_SCRIPT] }).catch(() => {}),
+    ),
+  );
+}
 
 // chrome.alarms rather than setInterval/setTimeout: a page-resident timer
 // dies whenever MV3 suspends this service worker, but an alarm survives
@@ -20,9 +44,13 @@ chrome.runtime.onInstalled.addListener(async () => {
   const state = await loadState();
   await saveState(state);
   await syncAlarm();
+  await injectOverlayIntoOpenTabs();
 });
 
-chrome.runtime.onStartup.addListener(syncAlarm);
+chrome.runtime.onStartup.addListener(async () => {
+  await syncAlarm();
+  await injectOverlayIntoOpenTabs();
+});
 
 // The popup flips masterEnabled directly in storage; react here so the alarm
 // is (de)registered immediately rather than waiting for the next browser
@@ -48,6 +76,28 @@ async function syncAlarm() {
   } else {
     await chrome.alarms.clear(ALARM_NAME);
   }
+  await refreshIdleActivity();
+}
+
+/**
+ * Publish the shared "current activity" record (lib/activity.js) for the
+ * idle/off state - i.e. whenever no poll cycle is running. Always re-reads
+ * masterEnabled fresh rather than trusting a caller-passed flag, since this
+ * can run after an arbitrary delay (e.g. a pollFeed() cycle's finally).
+ */
+async function refreshIdleActivity() {
+  const state = await loadState();
+  if (!state.masterEnabled) {
+    await saveActivity(getDefaultActivity());
+    return;
+  }
+  const alarm = await chrome.alarms.get(ALARM_NAME);
+  await saveActivity({
+    masterEnabled: true,
+    status: 'idle',
+    postingTitle: null,
+    nextAlarmAt: alarm ? alarm.scheduledTime : null,
+  });
 }
 
 // Guards against a poll cycle still running (each apply opens a tab,
@@ -79,62 +129,74 @@ export async function pollFeed() {
   const state = await loadState();
   if (!state.masterEnabled) return;
 
-  let postings;
+  // Published for the popup and the ofmjobs.com tab overlay (lib/activity.js)
+  // - this window (through the `finally` below) matches pollInProgress
+  // above, which is what the tab overlay's full-tab lock keys off.
+  await saveActivity({ masterEnabled: true, status: 'polling', postingTitle: null, nextAlarmAt: null });
   try {
-    postings = await getFeedPostings();
-  } catch (err) {
-    // Feed fetch opens/scrapes/closes a hidden tab (see lib/feed.js) - can
-    // genuinely fail (e.g. navigation error, session expired). Warn, don't
-    // throw, so a bad cycle never surfaces as a console error and just
-    // retries next alarm.
-    console.warn('[ofm-autoapply] feed unavailable this cycle:', err.message);
-    return;
-  }
-
-  // Grow the known-category list from every posting seen this cycle
-  // (matched or not), not just acted-on ones - see lib/storage.js.
-  const knownCategories = new Set(state.knownCategories);
-  for (const posting of postings) {
-    for (const category of posting.categories) knownCategories.add(category);
-  }
-
-  const { unseen } = partitionBySeen(postings, state.seenIds);
-  if (unseen.length === 0) {
-    await saveState({ ...state, knownCategories: [...knownCategories] });
-    return;
-  }
-
-  const matchingIds = new Set(filterByCategory(unseen, state.selectedCategories).map((p) => p.id));
-
-  const seenIds = [...state.seenIds];
-  let log = state.log;
-
-  for (const posting of unseen) {
-    if (!matchingIds.has(posting.id)) {
-      // Not in a checked category - never acted on, but still marked seen so
-      // it doesn't get re-evaluated every cycle. If the captain later checks
-      // that category, postings already in the feed at that point won't
-      // retroactively trigger; only postings that are new *after* the change
-      // will.
-      seenIds.push(posting.id);
-      continue;
-    }
-
-    let outcome;
-    let reason;
+    let postings;
     try {
-      const result = await applyToPosting(posting);
-      outcome = result.status;
-      reason = result.reason;
+      postings = await getFeedPostings();
     } catch (err) {
-      console.warn('[ofm-autoapply] apply attempt failed, logging as needs-manual:', err);
-      outcome = 'needs-manual';
-      reason = 'unexpected-error';
+      // Feed fetch opens/scrapes/closes a hidden tab (see lib/feed.js) - can
+      // genuinely fail (e.g. navigation error, session expired). Warn, don't
+      // throw, so a bad cycle never surfaces as a console error and just
+      // retries next alarm.
+      console.warn('[ofm-autoapply] feed unavailable this cycle:', err.message);
+      return;
     }
 
-    log = appendLogEntry(log, createLogEntry({ posting, outcome, reason }));
-    seenIds.push(posting.id);
-  }
+    // Grow the known-category list from every posting seen this cycle
+    // (matched or not), not just acted-on ones - see lib/storage.js.
+    const knownCategories = new Set(state.knownCategories);
+    for (const posting of postings) {
+      for (const category of posting.categories) knownCategories.add(category);
+    }
 
-  await saveState({ ...state, seenIds, log, knownCategories: [...knownCategories] });
+    const { unseen } = partitionBySeen(postings, state.seenIds);
+    if (unseen.length === 0) {
+      await saveState({ ...state, knownCategories: [...knownCategories] });
+      return;
+    }
+
+    const matchingIds = new Set(filterByCategory(unseen, state.selectedCategories).map((p) => p.id));
+
+    const seenIds = [...state.seenIds];
+    let log = state.log;
+
+    for (const posting of unseen) {
+      if (!matchingIds.has(posting.id)) {
+        // Not in a checked category - never acted on, but still marked seen so
+        // it doesn't get re-evaluated every cycle. If the captain later checks
+        // that category, postings already in the feed at that point won't
+        // retroactively trigger; only postings that are new *after* the change
+        // will.
+        seenIds.push(posting.id);
+        continue;
+      }
+
+      await saveActivity({ masterEnabled: true, status: 'applying', postingTitle: posting.title, nextAlarmAt: null });
+
+      let outcome;
+      let reason;
+      try {
+        const result = await applyToPosting(posting);
+        outcome = result.status;
+        reason = result.reason;
+      } catch (err) {
+        console.warn('[ofm-autoapply] apply attempt failed, logging as needs-manual:', err);
+        outcome = 'needs-manual';
+        reason = 'unexpected-error';
+      }
+
+      log = appendLogEntry(log, createLogEntry({ posting, outcome, reason }));
+      seenIds.push(posting.id);
+    }
+
+    await saveState({ ...state, seenIds, log, knownCategories: [...knownCategories] });
+  } finally {
+    // Guarantees the overlay/popup fall back to idle even if something above
+    // threw unexpectedly, regardless of which branch returned.
+    await refreshIdleActivity();
+  }
 }

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { STORAGE_KEY, getDefaultState } from '../lib/storage.js';
+import { loadActivity } from '../lib/activity.js';
 
 // Each test needs a fresh evaluation of background/service-worker.js (its
 // top-level code registers the chrome.alarms/storage listeners under test),
@@ -25,6 +26,7 @@ function installChromeMock(initialState) {
   let store = { [STORAGE_KEY]: initialState };
   const alarmCalls = [];
   const clearCalls = [];
+  let scheduledAlarm;
   let onAlarmListener;
   let onChangedListener;
 
@@ -56,9 +58,15 @@ function installChromeMock(initialState) {
       },
     },
     alarms: {
-      create: (name, opts) => alarmCalls.push({ name, opts }),
+      create: (name, opts) => {
+        alarmCalls.push({ name, opts });
+        const periodMs = (opts && opts.periodInMinutes ? opts.periodInMinutes : 0) * 60000;
+        scheduledAlarm = { name, scheduledTime: Date.now() + periodMs };
+      },
+      get: async (name) => (scheduledAlarm && scheduledAlarm.name === name ? scheduledAlarm : undefined),
       clear: async (name) => {
         clearCalls.push(name);
+        scheduledAlarm = undefined;
         return true;
       },
       onAlarm: {
@@ -156,4 +164,95 @@ test('flipping masterEnabled in storage does resync the alarm', async (t) => {
   await saveState({ ...chromeMock.getStore(), masterEnabled: false });
 
   assert.deepEqual(chromeMock.clearCalls, ['ofm-autoapply-poll'], 'turning the master switch off must clear the alarm immediately');
+});
+
+test('pollFeed publishes "applying" with the posting title while acting on a match, then falls back to idle with a next-alarm time', async (t) => {
+  const chromeMock = installChromeMock({
+    ...getDefaultState(),
+    masterEnabled: false,
+    selectedCategories: ['Reddit Marketer'],
+  });
+
+  const posting = { id: 'p1', title: 'Reddit Marketer for X', categories: ['Reddit Marketer'], url: 'https://x/p1' };
+  const observedActivityDuringApply = [];
+  t.mock.module('../lib/feed.js', {
+    namedExports: { getFeedPostings: async () => [posting] },
+  });
+  t.mock.module('../lib/apply.js', {
+    namedExports: {
+      applyToPosting: async () => {
+        observedActivityDuringApply.push(await loadActivity());
+        return { status: 'applied' };
+      },
+    },
+  });
+
+  const { pollFeed } = await importServiceWorkerFresh();
+  const { saveState } = await import('../lib/storage.js');
+  // Flip masterEnabled on, same as a real captain toggling it - this is what
+  // registers the chrome.alarms entry pollFeed() reads back below as
+  // nextAlarmAt (in production pollFeed() only ever runs once an alarm
+  // already exists, i.e. after this has happened).
+  await saveState({ ...chromeMock.getStore(), masterEnabled: true });
+
+  await pollFeed();
+
+  assert.deepEqual(observedActivityDuringApply, [
+    { masterEnabled: true, status: 'applying', postingTitle: 'Reddit Marketer for X', nextAlarmAt: null },
+  ]);
+
+  const finalActivity = await loadActivity();
+  assert.equal(finalActivity.masterEnabled, true);
+  assert.equal(finalActivity.status, 'idle');
+  assert.equal(finalActivity.postingTitle, null);
+  assert.equal(typeof finalActivity.nextAlarmAt, 'number');
+});
+
+test('pollFeed falls back to idle activity even when the feed fetch throws', async (t) => {
+  installChromeMock({ ...getDefaultState(), masterEnabled: true });
+
+  t.mock.module('../lib/feed.js', {
+    namedExports: {
+      getFeedPostings: async () => {
+        throw new Error('boom');
+      },
+    },
+  });
+  t.mock.module('../lib/apply.js', {
+    namedExports: { applyToPosting: async () => ({ status: 'applied' }) },
+  });
+
+  const { pollFeed } = await importServiceWorkerFresh();
+  await pollFeed();
+
+  const activity = await loadActivity();
+  assert.equal(activity.status, 'idle');
+});
+
+test('turning the master switch off immediately clears the activity record (hides the tab overlay/indicator)', async (t) => {
+  const chromeMock = installChromeMock({ ...getDefaultState(), masterEnabled: true });
+
+  t.mock.module('../lib/feed.js', { namedExports: { getFeedPostings: async () => [] } });
+  t.mock.module('../lib/apply.js', { namedExports: { applyToPosting: async () => ({ status: 'applied' }) } });
+
+  const { pollFeed } = await importServiceWorkerFresh();
+  const { saveState } = await import('../lib/storage.js');
+
+  // In production the activity record is already populated by the time a
+  // captain could toggle the switch off (onInstalled/onStartup always runs
+  // first); simulate that here by running one cycle before flipping off.
+  await pollFeed();
+  const before = await loadActivity();
+  assert.equal(before.masterEnabled, true);
+
+  await saveState({ ...chromeMock.getStore(), masterEnabled: false });
+  // The storage.onChanged listener kicks off syncAlarm() -> refreshIdleActivity()
+  // without awaiting it (fire-and-forget, matching the existing alarm-resync
+  // listener above) - flush the microtask queue so its writes land before we
+  // read them back, same as the overlapping-poll test's use of setImmediate.
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const after = await loadActivity();
+  assert.deepEqual(after, { masterEnabled: false, status: 'idle', postingTitle: null, nextAlarmAt: null });
 });
