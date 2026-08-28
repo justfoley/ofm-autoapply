@@ -98,11 +98,10 @@
   corner.hidden = true;
   shadow.appendChild(corner);
 
-  function mountIfNeeded() {
-    if (!root.isConnected && document.documentElement) {
-      document.documentElement.appendChild(root);
-    }
-  }
+  // Mounted synchronously (both overlay and corner start hidden) so the
+  // ROOT_ID guard above is claimed before any async work - a second script
+  // injected in the same tick will already see this node and bail out.
+  document.documentElement.appendChild(root);
 
   let tickTimer = null;
 
@@ -118,8 +117,6 @@
       stopTick();
       return;
     }
-
-    mountIfNeeded();
 
     if (isCycleActive(activity)) {
       corner.hidden = true;
