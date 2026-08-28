@@ -3,8 +3,8 @@ import { ACTIVITY_STORAGE_KEY, loadActivity, getDefaultActivity, describeActivit
 
 const BADGE_LABELS = {
   applied: 'Applied',
-  'applied-unconfirmed': 'Applied (unconfirmed)',
-  'needs-manual': 'Needs manual',
+  'applied-unconfirmed': 'Applied - please double-check',
+  'needs-manual': "Couldn't apply automatically",
 };
 
 const masterToggle = document.getElementById('master-toggle');

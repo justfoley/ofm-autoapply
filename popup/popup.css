@@ -1,34 +1,107 @@
+/*
+ * Visual language pulled from ofmjobs.com's own live site (public marketing
+ * pages, cross-checked against the captain-supplied authenticated dashboard
+ * DOM dump - see AGENTS.md): brand green #2e8053, Hanken Grotesk type,
+ * shadcn-style soft neutrals/radii, and the same pastel-badge pattern
+ * (bg = accent color at low opacity, text = the accent color) used for the
+ * dashboard's category chips.
+ */
+
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/hanken-grotesk-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/hanken-grotesk-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fonts/hanken-grotesk-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/hanken-grotesk-700.woff2") format("woff2");
+}
+
 :root {
   color-scheme: light;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --om-primary: #2e8053;
+  --om-primary-soft-bg: #ecf5f0;
+  --om-primary-soft-text: #216142;
+  --om-ring: #009644;
+
+  --om-bg: #fafafa;
+  --om-card: #ffffff;
+  --om-border: #e5e8e6;
+  --om-text: #16181a;
+  --om-text-muted: #6b716d;
+
+  --om-amber-bg: #fdf3e2;
+  --om-amber-text: #9a5b12;
+  --om-slate-bg: #eef0ef;
+  --om-slate-text: #565b58;
+
+  --om-radius-sm: 8px;
+  --om-radius-md: 12px;
+  --om-radius-lg: 16px;
+  --om-radius-full: 999px;
+
+  --om-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+
+  font-family:
+    "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  width: 360px;
-  max-height: 560px;
+  width: 380px;
+  max-height: 580px;
   overflow-y: auto;
   margin: 0;
-  padding: 12px 14px 16px;
-  font-size: 13px;
-  color: #1a1a1a;
+  padding: 18px 18px 20px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--om-text);
+  background: var(--om-bg);
 }
 
 h1 {
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 700;
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 h2 {
-  font-size: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #555;
-  margin: 14px 0 6px;
+  letter-spacing: 0.05em;
+  color: var(--om-text-muted);
+  margin: 0 0 6px;
 }
 
 .hint {
-  margin: 0 0 6px;
-  color: #666;
+  margin: 0 0 10px;
+  color: var(--om-text-muted);
   font-size: 12px;
 }
 
@@ -36,90 +109,149 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 14px;
 }
 
-.toggle {
+.brand {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+.brand-mark {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--om-radius-sm);
+  background: var(--om-primary);
+  flex-shrink: 0;
+}
+
+/* iOS-style switch: a real checkbox visually hidden, driving a track/knob
+   built from sibling spans so the whole thing stays keyboard-accessible. */
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
+  user-select: none;
+}
+
+.switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-track {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border-radius: var(--om-radius-full);
+  background: #d8dbd9;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.switch input:checked + .switch-track {
+  background: var(--om-primary);
+}
+
+.switch input:checked + .switch-track .switch-knob {
+  transform: translateX(16px);
+}
+
+.switch input:focus-visible + .switch-track {
+  outline: 2px solid var(--om-ring);
+  outline-offset: 2px;
+}
+
+.switch-label {
+  font-size: 12.5px;
   font-weight: 600;
-}
-
-.toggle input {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-#master-toggle-label {
-  min-width: 24px;
+  color: var(--om-text-muted);
+  min-width: 22px;
 }
 
 .status-banner {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 10px 0 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 12px;
+  margin: 0 0 16px;
+  padding: 9px 12px;
+  border-radius: var(--om-radius-md);
+  font-size: 12.5px;
   font-weight: 600;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
+  transition: background-color 0.2s ease;
 }
 
 .status-banner.status-off {
-  background: #f0f0f0;
-  color: #666;
+  background: var(--om-slate-bg);
+  color: var(--om-slate-text);
 }
 .status-banner.status-off .status-dot {
-  background: #999;
+  background: #a2a8a4;
 }
 
 .status-banner.status-idle {
-  background: #eef4ff;
-  color: #1d4ed8;
+  background: var(--om-primary-soft-bg);
+  color: var(--om-primary-soft-text);
 }
 .status-banner.status-idle .status-dot {
-  background: #3b82f6;
+  background: var(--om-primary);
 }
 
 .status-banner.status-polling,
 .status-banner.status-applying {
-  background: #fff6e0;
-  color: #a45319;
+  background: var(--om-amber-bg);
+  color: var(--om-amber-text);
 }
 .status-banner.status-polling .status-dot,
 .status-banner.status-applying .status-dot {
-  background: #f0a83a;
+  background: #d98a1f;
   animation: ofm-pulse 1.1s ease-in-out infinite;
 }
 
 @keyframes ofm-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(240, 168, 58, 0.5);
+    box-shadow: 0 0 0 0 rgba(217, 138, 31, 0.45);
   }
   50% {
     opacity: 0.7;
-    box-shadow: 0 0 0 4px rgba(240, 168, 58, 0);
+    box-shadow: 0 0 0 4px rgba(217, 138, 31, 0);
   }
 }
 
-.banner {
-  margin: 10px 0;
-  padding: 8px 10px;
-  background: #fff6e0;
-  border: 1px solid #e8cf8a;
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1.4;
+.card {
+  background: var(--om-card);
+  border: 1px solid var(--om-border);
+  border-radius: var(--om-radius-lg);
+  box-shadow: var(--om-shadow-card);
+  padding: 14px 14px 12px;
+  margin: 0 0 14px;
 }
 
 .category-list {
@@ -127,13 +259,27 @@ h2 {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .category-list label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: var(--om-radius-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.category-list label:hover {
+  background: var(--om-primary-soft-bg);
+}
+
+.category-list input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--om-primary);
   cursor: pointer;
 }
 
@@ -142,59 +288,86 @@ h2 {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 6px;
-  max-height: 220px;
+  gap: 8px;
+  max-height: 230px;
   overflow-y: auto;
 }
 
 .log-entry {
-  border: 1px solid #e2e2e2;
-  border-radius: 6px;
-  padding: 6px 8px;
+  border: 1px solid var(--om-border);
+  border-radius: var(--om-radius-md);
+  padding: 8px 10px;
+  transition: border-color 0.15s ease;
+}
+
+.log-entry:hover {
+  border-color: #ccd3ce;
 }
 
 .log-entry .title {
   font-weight: 600;
   display: block;
+  color: var(--om-text);
+  text-decoration: none;
+}
+
+.log-entry .title:hover {
+  text-decoration: underline;
 }
 
 .log-entry .meta {
-  color: #666;
-  font-size: 11px;
+  color: var(--om-text-muted);
+  font-size: 11.5px;
   display: block;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .badge {
   display: inline-block;
-  border-radius: 4px;
-  padding: 1px 6px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  border-radius: var(--om-radius-full);
+  padding: 2px 9px;
+  margin-top: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
 }
 
 .badge.applied {
-  background: #dcf5e0;
-  color: #1a7a2e;
+  background: var(--om-primary-soft-bg);
+  color: var(--om-primary-soft-text);
 }
 
 .badge.applied-unconfirmed {
-  background: #e0edff;
-  color: #1d4ed8;
+  background: var(--om-amber-bg);
+  color: var(--om-amber-text);
 }
 
 .badge.needs-manual {
-  background: #ffe8d6;
-  color: #a45319;
+  background: var(--om-slate-bg);
+  color: var(--om-slate-text);
 }
 
-.log-entry a {
-  color: #1a56db;
-  text-decoration: none;
+.about {
+  margin: 4px 2px 0;
 }
 
-.log-entry a:hover {
-  text-decoration: underline;
+.about summary {
+  font-size: 11.5px;
+  color: var(--om-text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.about summary::-webkit-details-marker {
+  display: none;
+}
+
+.about summary:hover {
+  color: var(--om-text);
+}
+
+.about p {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--om-text-muted);
 }
