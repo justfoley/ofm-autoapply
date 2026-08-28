@@ -12,5 +12,12 @@
   "action": {
     "default_popup": "popup/popup.html",
     "default_title": "ofm-autoapply"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://ofmjobs.com/*"],
+      "js": ["content/overlay.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }

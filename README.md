@@ -35,9 +35,16 @@ confirmed is called out explicitly rather than guessed at.
   Apply button - that's the complete action. The pre-click eligibility check
   and post-click outcome interpretation are pure, unit-tested logic
   (`lib/apply-eligibility.js`).
-- Popup UI (`popup/`) with the master toggle, category checkboxes (populated
-  from `state.knownCategories`, not a fixed list), and the activity log,
-  showing three possible outcomes per posting (see below).
+- Popup UI (`popup/`) with the master toggle, a live status banner, category
+  checkboxes (populated from `state.knownCategories`, not a fixed list), and
+  the activity log, showing three possible outcomes per posting (see below).
+- Live status: `lib/activity.js` tracks what the extension is doing right now
+  (idle with a countdown to the next check, checking the feed, or applying to
+  a named posting), shared by the popup's status banner and a tab overlay
+  injected into every open `ofmjobs.com` tab (`content/overlay.js`) - a
+  full-tab blurred lock while a poll cycle is running, a small corner
+  countdown while idle, nothing while the master switch is off. See AGENTS.md
+  for the storage-key/messaging shape.
 
 ## What was confirmed
 
@@ -113,14 +120,15 @@ npm test
 Runs the unit test suite (Node's built-in test runner, `node
 --experimental-test-module-mocks --test`) over `lib/dedupe.js`,
 `lib/category-filter.js`, `lib/log.js`, `lib/storage.js`,
-`lib/posting-parser.js`, `lib/apply-eligibility.js`, and
+`lib/posting-parser.js`, `lib/apply-eligibility.js`, `lib/activity.js`, and
 `background/service-worker.js`'s polling orchestration (in-flight guard,
-alarm resync) - using an in-memory mock of the `chrome.storage.local` and
-`chrome.alarms` promise APIs, plus `node:test`'s module mocking for
-`lib/feed.js`/`lib/apply.js` (hence the `--experimental-test-module-mocks`
-flag). No live DOM needed since DOM-walking is isolated to thin, untested
-shims in `lib/feed.js` and `lib/apply.js` that run inside a real tab via
-`chrome.scripting`.
+alarm resync, activity-state transitions) - using an in-memory mock of the
+`chrome.storage.local` and `chrome.alarms` promise APIs, plus `node:test`'s
+module mocking for `lib/feed.js`/`lib/apply.js` (hence the
+`--experimental-test-module-mocks` flag). No live DOM needed since
+DOM-walking is isolated to thin, untested shims in `lib/feed.js`,
+`lib/apply.js`, and `content/overlay.js` that run inside a real tab via
+`chrome.scripting`/the browser's content-script injection.
 
 Full live-site DOM interaction (the real feed URL, exact card markup at
 click time) is not something these automated tests can safely cover - see
