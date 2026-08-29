@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Auto-applies to new ofmjobs.com postings in categories the captain selects.",
   "permissions": ["storage", "alarms", "tabs", "scripting"],
-  "host_permissions": ["https://ofmjobs.com/*"],
+  "host_permissions": ["https://ofmjobs.com/*", "https://generativelanguage.googleapis.com/*"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
@@ -13,6 +13,7 @@
     "default_popup": "popup/popup.html",
     "default_title": "ofm-autoapply"
   },
+  "options_page": "options/options.html",
   "content_scripts": [
     {
       "matches": ["https://ofmjobs.com/*"],

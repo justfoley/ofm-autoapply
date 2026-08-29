@@ -180,17 +180,19 @@ export async function pollFeed() {
 
       let outcome;
       let reason;
+      let screeningMatches;
       try {
-        const result = await applyToPosting(posting);
+        const result = await applyToPosting(posting, { answerBank: state.answerBank, geminiApiKey: state.geminiApiKey });
         outcome = result.status;
         reason = result.reason;
+        screeningMatches = result.screeningMatches;
       } catch (err) {
         console.warn('[ofm-autoapply] apply attempt failed, logging as needs-manual:', err);
         outcome = 'needs-manual';
         reason = 'unexpected-error';
       }
 
-      log = appendLogEntry(log, createLogEntry({ posting, outcome, reason }));
+      log = appendLogEntry(log, createLogEntry({ posting, outcome, reason, screeningMatches }));
       seenIds.push(posting.id);
     }
 

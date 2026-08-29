@@ -54,6 +54,31 @@ test('rejects an outcome outside applied/applied-unconfirmed/needs-manual', () =
   assert.throws(() => createLogEntry({ posting, outcome: 'bogus' }), /Invalid log outcome/);
 });
 
+test('includes a screeningMatches audit trail only when given a non-empty array', () => {
+  const screeningMatches = [
+    { question: 'How many years?', matchedAnswerId: 'a1', matchedQuestion: 'Years of experience?', confidence: 0.92 },
+    { question: 'Handle a slow-to-buy subscriber?', matchedAnswerId: null, matchedQuestion: null, confidence: 0 },
+  ];
+  const withMatches = createLogEntry({ posting, outcome: 'needs-questions', timestamp: 't', screeningMatches });
+  assert.deepEqual(withMatches.screeningMatches, screeningMatches);
+
+  const withoutMatches = createLogEntry({ posting, outcome: 'applied', timestamp: 't' });
+  assert.equal('screeningMatches' in withoutMatches, false);
+
+  const withEmptyMatches = createLogEntry({ posting, outcome: 'applied', timestamp: 't', screeningMatches: [] });
+  assert.equal('screeningMatches' in withEmptyMatches, false);
+});
+
+test('screeningMatches entries in the log carry only the audit fields, even if extra data was passed in', () => {
+  const entry = createLogEntry({
+    posting,
+    outcome: 'applied',
+    timestamp: 't',
+    screeningMatches: [{ question: 'Q', matchedAnswerId: 'a1', matchedQuestion: 'Q', confidence: 0.9, answerText: 'should not leak into the log' }],
+  });
+  assert.deepEqual(entry.screeningMatches, [{ question: 'Q', matchedAnswerId: 'a1', matchedQuestion: 'Q', confidence: 0.9 }]);
+});
+
 test('appendLogEntry prepends newest-first without mutating the input array', () => {
   const first = createLogEntry({ posting, outcome: 'applied', timestamp: 't1' });
   const second = createLogEntry({ posting: { ...posting, id: 'b' }, outcome: 'needs-manual', timestamp: 't2' });

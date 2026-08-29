@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ofm-autoapply settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>Answer bank &amp; Gemini setup</h1>
+          <p class="subtitle">For postings that need application questions</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Gemini API key</h2>
+      <p class="hint">
+        Used only to pick which of your saved answers below best matches a new
+        screening question - it is never asked to write new answer text.
+        Stored locally in this browser and never sent anywhere but Google's
+        Gemini API.
+      </p>
+      <div class="key-row">
+        <input type="password" id="gemini-key-input" placeholder="Paste your Gemini API key" autocomplete="off" />
+        <button type="button" id="toggle-key-visibility" class="btn-icon" title="Show/hide key">Show</button>
+      </div>
+      <div class="key-actions">
+        <button type="button" id="save-key-btn" class="btn-primary">Save key</button>
+        <button type="button" id="test-key-btn" class="btn-secondary">Test connection</button>
+      </div>
+      <p id="key-status" class="key-status" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2>Your true-answer bank</h2>
+      <p class="hint">
+        Add the exact screening questions you've been asked and your own true
+        answer to each. The extension will only ever submit an answer you
+        wrote here, verbatim - if a new question doesn't confidently match one
+        of these, that posting is left for you to answer by hand, same as
+        today.
+      </p>
+
+      <form id="add-answer-form" class="answer-form">
+        <label>
+          Question
+          <textarea id="new-question" placeholder="e.g. How many months of OnlyFans chatting experience do you have?" rows="2" required></textarea>
+        </label>
+        <label>
+          Your answer
+          <textarea id="new-answer" placeholder="Your true answer, exactly as you'd want it submitted" rows="3" required></textarea>
+        </label>
+        <button type="submit" class="btn-primary">Add to answer bank</button>
+      </form>
+
+      <p id="answer-bank-empty" class="hint" hidden>No saved answers yet - add your first one above.</p>
+      <ul id="answer-bank-list" class="answer-list"></ul>
+    </section>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

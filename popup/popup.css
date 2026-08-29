@@ -351,6 +351,39 @@ h2 {
   color: #6b21a8;
 }
 
+.btn-secondary {
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+  border-radius: var(--om-radius-sm);
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 12px;
+  border: 1px solid var(--om-border);
+  background: var(--om-bg);
+  color: var(--om-text);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--om-primary-soft-bg);
+  border-color: var(--om-primary-soft-bg);
+}
+
+.match-audit {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--om-text-muted);
+  display: grid;
+  gap: 2px;
+}
+
+.match-audit li::before {
+  content: "\2022 ";
+}
+
 .about {
   margin: 4px 2px 0;
 }
