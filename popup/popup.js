@@ -5,6 +5,7 @@ const BADGE_LABELS = {
   applied: 'Applied',
   'applied-unconfirmed': 'Applied - please double-check',
   'needs-manual': "Couldn't apply automatically",
+  'needs-questions': 'Needs your answers',
 };
 
 const masterToggle = document.getElementById('master-toggle');
