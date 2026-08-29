@@ -5,6 +5,8 @@ import {
   canClickApply,
   describeUnexpectedApplyState,
   interpretPostClickState,
+  requiresScreeningQuestions,
+  interpretScreeningSubmitState,
 } from '../lib/apply-eligibility.js';
 
 test('canClickApply: eligible when the card has a plain "Apply" button', () => {
@@ -126,4 +128,60 @@ test('describeUnexpectedApplyState: names the navigation when the tab moved away
 
 test('describeUnexpectedApplyState: undefined when neither signal fired', () => {
   assert.equal(describeUnexpectedApplyState({}), undefined);
+});
+
+test('requiresScreeningQuestions: true for a posting with questions and no tests', () => {
+  assert.equal(requiresScreeningQuestions({ questionCount: 2, testCount: 0 }), true);
+});
+
+test('requiresScreeningQuestions: false for a posting with no questions', () => {
+  assert.equal(requiresScreeningQuestions({ questionCount: 0, testCount: 0 }), false);
+});
+
+test('requiresScreeningQuestions: false when the posting also requires tests (unconfirmed flow, always falls back)', () => {
+  assert.equal(requiresScreeningQuestions({ questionCount: 2, testCount: 1 }), false);
+});
+
+test('requiresScreeningQuestions: false when only tests are required (no questions)', () => {
+  assert.equal(requiresScreeningQuestions({ questionCount: 0, testCount: 1 }), false);
+});
+
+test('interpretScreeningSubmitState: applied when the tab navigated away from the apply page', () => {
+  const status = interpretScreeningSubmitState({
+    applyUrl: 'https://ofmjobs.com/dashboard/jobs/x/apply',
+    postSubmitState: { buttonFound: true, buttonDisabled: false, buttonLabel: 'Submit application', url: 'https://ofmjobs.com/dashboard/jobs/x' },
+  });
+  assert.equal(status, 'applied');
+});
+
+test('interpretScreeningSubmitState: applied when the tagged submit button disappeared', () => {
+  const status = interpretScreeningSubmitState({
+    applyUrl: 'https://ofmjobs.com/dashboard/jobs/x/apply',
+    postSubmitState: { buttonFound: false, buttonDisabled: null, buttonLabel: null, url: 'https://ofmjobs.com/dashboard/jobs/x/apply' },
+  });
+  assert.equal(status, 'applied');
+});
+
+test('interpretScreeningSubmitState: applied when the button became disabled', () => {
+  const status = interpretScreeningSubmitState({
+    applyUrl: 'https://ofmjobs.com/dashboard/jobs/x/apply',
+    postSubmitState: { buttonFound: true, buttonDisabled: true, buttonLabel: 'Submit application', url: 'https://ofmjobs.com/dashboard/jobs/x/apply' },
+  });
+  assert.equal(status, 'applied');
+});
+
+test('interpretScreeningSubmitState: applied when the tagged button was relabeled (e.g. "Submitted")', () => {
+  const status = interpretScreeningSubmitState({
+    applyUrl: 'https://ofmjobs.com/dashboard/jobs/x/apply',
+    postSubmitState: { buttonFound: true, buttonDisabled: false, buttonLabel: 'Submitted', url: 'https://ofmjobs.com/dashboard/jobs/x/apply' },
+  });
+  assert.equal(status, 'applied');
+});
+
+test('interpretScreeningSubmitState: unconfirmed when nothing observably changed', () => {
+  const status = interpretScreeningSubmitState({
+    applyUrl: 'https://ofmjobs.com/dashboard/jobs/x/apply',
+    postSubmitState: { buttonFound: true, buttonDisabled: false, buttonLabel: 'Submit application', url: 'https://ofmjobs.com/dashboard/jobs/x/apply' },
+  });
+  assert.equal(status, 'applied-unconfirmed');
 });

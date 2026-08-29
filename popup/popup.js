@@ -15,6 +15,7 @@ const logList = document.getElementById('log-list');
 const logEmpty = document.getElementById('log-empty');
 const statusBanner = document.getElementById('status-banner');
 const statusText = document.getElementById('status-text');
+const openOptionsBtn = document.getElementById('open-options-btn');
 
 let activityTickTimer = null;
 
@@ -26,6 +27,8 @@ async function init() {
   masterToggle.checked = state.masterEnabled;
   masterToggleLabel.textContent = state.masterEnabled ? 'On' : 'Off';
   masterToggle.addEventListener('change', onMasterToggleChange);
+
+  openOptionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 
   renderCategories(state.knownCategories, state.selectedCategories);
   renderLog(state.log);
@@ -132,7 +135,29 @@ function buildLogEntryElement(entry) {
   meta.textContent = `${categoryText} • ${formatTimestamp(entry.timestamp)}${reasonText}`;
 
   li.append(title, badge, meta);
+
+  if (entry.screeningMatches && entry.screeningMatches.length > 0) {
+    li.append(buildScreeningAuditList(entry.screeningMatches));
+  }
+
   return li;
+}
+
+// Audit trail for a screening-questions posting (lib/question-matcher.js via
+// lib/screening-apply.js) - which stored answer, if any, matched each live
+// question, so the captain can double-check what was (or wasn't) submitted.
+function buildScreeningAuditList(screeningMatches) {
+  const ul = document.createElement('ul');
+  ul.className = 'match-audit';
+  for (const match of screeningMatches) {
+    const li = document.createElement('li');
+    const confidencePct = Math.round((match.confidence || 0) * 100);
+    li.textContent = match.matchedQuestion
+      ? `"${match.question}" -> matched "${match.matchedQuestion}" (${confidencePct}% confidence)`
+      : `"${match.question}" -> no confident match (${confidencePct}% confidence)`;
+    ul.append(li);
+  }
+  return ul;
 }
 
 function formatTimestamp(isoString) {

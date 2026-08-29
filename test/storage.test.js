@@ -46,6 +46,8 @@ test('saveState then loadState round-trips the full state', async () => {
         timestamp: 't',
       },
     ],
+    answerBank: [{ id: 'q1', question: 'How many years?', answer: '3 years' }],
+    geminiApiKey: 'test-key',
   };
 
   await saveState(written, area);
@@ -62,6 +64,8 @@ test('loadState merges stored partial state over defaults (forward-compat with n
   assert.deepEqual(state.knownCategories, getDefaultState().knownCategories);
   assert.deepEqual(state.seenIds, []);
   assert.deepEqual(state.log, []);
+  assert.deepEqual(state.answerBank, []);
+  assert.equal(state.geminiApiKey, '');
 });
 
 test('saveState only ever touches the single namespaced storage key', async () => {

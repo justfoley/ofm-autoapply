@@ -1,0 +1,298 @@
+/*
+ * Same visual language as popup/popup.css (see AGENTS.md's popup design
+ * note) - ofmjobs.com brand green, Hanken Grotesk, shadcn-style neutrals -
+ * just laid out as a full page instead of a 380px popup. Reuses the popup's
+ * bundled font files by relative path rather than duplicating them.
+ */
+
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../popup/fonts/hanken-grotesk-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../popup/fonts/hanken-grotesk-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../popup/fonts/hanken-grotesk-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../popup/fonts/hanken-grotesk-700.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: light;
+
+  --om-primary: #2e8053;
+  --om-primary-soft-bg: #ecf5f0;
+  --om-primary-soft-text: #216142;
+  --om-ring: #009644;
+
+  --om-bg: #fafafa;
+  --om-card: #ffffff;
+  --om-border: #e5e8e6;
+  --om-text: #16181a;
+  --om-text-muted: #6b716d;
+
+  --om-amber-bg: #fdf3e2;
+  --om-amber-text: #9a5b12;
+  --om-slate-bg: #eef0ef;
+  --om-slate-text: #565b58;
+  --om-red-bg: #fdecec;
+  --om-red-text: #a3261f;
+
+  --om-radius-sm: 8px;
+  --om-radius-md: 12px;
+  --om-radius-lg: 16px;
+  --om-radius-full: 999px;
+
+  --om-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+
+  font-family:
+    "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--om-text);
+  background: var(--om-bg);
+}
+
+h1 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--om-text-muted);
+  margin: 0 0 8px;
+}
+
+.hint {
+  margin: 0 0 14px;
+  color: var(--om-text-muted);
+  font-size: 12.5px;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  color: var(--om-text-muted);
+  font-size: 12.5px;
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--om-radius-md);
+  background: var(--om-primary);
+  flex-shrink: 0;
+}
+
+.card {
+  background: var(--om-card);
+  border: 1px solid var(--om-border);
+  border-radius: var(--om-radius-lg);
+  box-shadow: var(--om-shadow-card);
+  padding: 20px 20px 22px;
+  margin: 0 0 20px;
+}
+
+input[type="password"],
+input[type="text"],
+textarea {
+  width: 100%;
+  border: 1px solid var(--om-border);
+  border-radius: var(--om-radius-sm);
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--om-text);
+  background: var(--om-bg);
+  resize: vertical;
+}
+
+input[type="password"]:focus,
+input[type="text"]:focus,
+textarea:focus {
+  outline: 2px solid var(--om-ring);
+  outline-offset: 1px;
+  border-color: var(--om-ring);
+}
+
+.key-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.key-row input {
+  flex: 1;
+}
+
+.key-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.key-status {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--om-radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.key-status.ok {
+  background: var(--om-primary-soft-bg);
+  color: var(--om-primary-soft-text);
+}
+
+.key-status.error {
+  background: var(--om-red-bg);
+  color: var(--om-red-text);
+}
+
+.key-status.pending {
+  background: var(--om-slate-bg);
+  color: var(--om-slate-text);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--om-radius-sm);
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 12.5px;
+  border: 1px solid transparent;
+  transition: filter 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--om-primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.btn-secondary {
+  background: var(--om-bg);
+  color: var(--om-text);
+  border-color: var(--om-border);
+}
+
+.btn-secondary:hover {
+  background: var(--om-primary-soft-bg);
+  border-color: var(--om-primary-soft-bg);
+}
+
+.btn-icon {
+  background: var(--om-bg);
+  color: var(--om-text-muted);
+  border-color: var(--om-border);
+  padding: 8px 12px;
+}
+
+.btn-danger {
+  background: var(--om-red-bg);
+  color: var(--om-red-text);
+}
+
+.btn-danger:hover {
+  filter: brightness(0.96);
+}
+
+.answer-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--om-border);
+}
+
+.answer-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--om-text-muted);
+}
+
+.answer-form .btn-primary {
+  justify-self: start;
+}
+
+.answer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.answer-entry {
+  border: 1px solid var(--om-border);
+  border-radius: var(--om-radius-md);
+  padding: 12px 14px;
+}
+
+.answer-entry .q {
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.answer-entry .a {
+  color: var(--om-text-muted);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.answer-entry .row-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.answer-entry textarea {
+  margin-bottom: 8px;
+}

@@ -48,6 +48,12 @@ confirmed is called out explicitly rather than guessed at.
   full-tab blurred lock while a poll cycle is running, a small corner
   countdown while idle, nothing while the master switch is off. See AGENTS.md
   for the storage-key/messaging shape.
+- Answer bank & Gemini-assisted screening questions (`options/`,
+  `lib/answer-bank.js`, `lib/gemini-client.js`, `lib/question-matcher.js`,
+  `lib/screening-apply.js`) - postings that need application questions can
+  now be auto-filled and submitted from the captain's own saved answers
+  instead of always landing in "Needs your answers". See "Answer bank &
+  screening questions" below.
 
 ## What was confirmed
 
@@ -136,16 +142,92 @@ cleanly skipped. Confirmed:
   more than one click despite carrying no badge - without it, a click that
   merely opened a form/navigated to one could be misread as `applied`
   instead of a false positive.
-- **Still unconfirmed**: what the real, authenticated answer-entry form
-  looks like (inline expansion, modal, or a separate navigated-to page) and
-  whether its fields are plain text inputs or real `<select>`/radio controls
-  for the multiple-choice-style questions - needs one authenticated look
-  before building anything beyond the detect-and-skip behavior above (e.g.
-  reusing the captain's own stored answers to auto-fill and submit).
-  Likewise unconfirmed: what a "tests" (`list-check` badge) requirement
+- **Now confirmed** (captain-supplied screenshots, see "Answer bank &
+  screening questions" below): the real, authenticated answer-entry form is a
+  separate navigated-to page (`/dashboard/jobs/{id}/apply`), not an inline
+  expansion or modal, and its fields are plain `<textarea>`s (free text), not
+  `<select>`/radio controls.
+- **Still unconfirmed**: what a "tests" (`list-check` badge) requirement
   actually involves - no live example was found even on the public preview
-  pages sampled, so it's routed into the same `needs-questions` bucket as a
-  conservative fallback rather than assumed to work like a text question.
+  pages sampled, so it's still routed into the plain `needs-questions`
+  bucket as a conservative fallback rather than assumed to work like a text
+  question (`requiresScreeningQuestions()` in `lib/apply-eligibility.js`
+  excludes any posting with a tests badge from the auto-fill flow below,
+  regardless of configuration).
+
+## Answer bank & screening questions
+
+Postings that need application questions no longer have to end at
+`needs-questions` - if the captain has saved true answers and a Gemini API
+key on the options page (open it from the popup's "Manage answer bank &
+Gemini key" button, or `chrome://extensions` -> ofm-autoapply -> Details ->
+Extension options), the extension will auto-fill and submit them too.
+
+**The one rule that governs all of this**: the extension only ever submits
+answer text the captain personally wrote and saved in the answer bank.
+Gemini is only ever asked to *classify* - "which saved answer, if any,
+confidently answers this new question" - never to draft, paraphrase, or
+guess new content. If any required question doesn't get a confident match,
+nothing is filled or submitted and the posting falls through to the exact
+same `needs-questions` outcome as before this feature existed.
+
+How it works, end to end:
+
+1. `lib/apply.js` only hands a questions-badge posting (not a tests-badge
+   one - see above) to `lib/screening-apply.js` once a Gemini key and a
+   non-empty answer bank are both configured; otherwise behavior is
+   unchanged from before this feature existed.
+2. `lib/screening-apply.js` navigates to the posting's `/apply` page and
+   scrapes its required questions. Confirmed live (screenshot,
+   `data/ofm-autoapply-5/reference/apply-page-screening-questions.png`,
+   outside this repo): one `<textarea placeholder="Your answer...">` per
+   numbered, `*`-marked required question, plus a separate optional "Cover
+   letter" textarea with a different placeholder - deliberately never
+   read/filled by this extension. The extraction selectors themselves are
+   inferred from that screenshot, not a live DOM dump (no ofmjobs.com login
+   was ever available to inspect the authenticated page directly) - see
+   AGENTS.md's answer-bank section for the two safety gates (question-count
+   sanity check, per-field fill verification) that compensate for that
+   uncertainty.
+3. Each required question is sent to Gemini (`gemini-3.6-flash`, confirmed
+   live during this build - see AGENTS.md) alongside the full answer bank,
+   asking it to pick a matching answer id or say none match, with a
+   confidence score. `lib/question-matcher.js`'s `resolveMatch()` only
+   accepts a match at or above a conservative threshold (0.85 by default).
+4. Only if **every** required question got a confident match are the
+   textareas filled (and read back to verify) and "Submit application"
+   clicked. A single unmatched question, a failed fill, or a missing submit
+   button aborts the whole posting without submitting anything.
+5. Every match attempt - matched or not, including why - is recorded on the
+   activity log entry as `screeningMatches` (question text, matched stored
+   question/id, confidence) for the captain to audit later; the popup's log
+   list renders it under the posting.
+
+### What was and wasn't verified live for this feature
+
+- **Verified live**: the Gemini API's exact request/response shapes
+  (`generateContent` with `responseSchema`, the `GET /models` key-validation
+  call, the 400 `API_KEY_INVALID` error shape) were confirmed with real
+  curl calls against the real API during this build. The options page's
+  answer-bank add/edit/delete flow was also verified against a real,
+  extension-loaded `chrome.storage.local` (via `chrome-devtools-axi` with
+  `--load-extension`, once that tool had a working Chrome install - see
+  AGENTS.md's historical note) - adding an answer persisted and rendered
+  correctly with working Edit/Delete controls.
+- **Not verified live**: the actual `/apply` page's DOM (no ofmjobs.com
+  login exists in this build environment - same limitation as the original
+  build), so the question-extraction selectors, the fill/submit mechanics,
+  and the post-submit confirmation heuristic in `lib/screening-apply.js` are
+  all unconfirmed beyond the screenshot and the safety gates described
+  above. The options page's "Test connection" button (live Gemini call from
+  inside the real extension context) and the popup's new "Manage answer
+  bank" button were not click-tested live either - `--load-extension`
+  browser sessions proved unreliable mid-task (the loaded extension/tab
+  disappeared between calls), and per the captain's standing instruction
+  this was not worked around with any other Chrome launch path. Every piece
+  of pure logic (prompt construction, response parsing, the
+  confident-match-or-abandon decision, answer bank storage helpers, the
+  apply-path branching decision) is unit-tested - see `npm test`.
 
 ## Still open (documented assumptions, not blocking)
 
@@ -168,6 +250,11 @@ cleanly skipped. Confirmed:
 5. On first install the master toggle defaults to **Off** and no categories
    are selected - polling and auto-apply will not run until the captain
    turns the toggle on and checks at least one category.
+6. To use the answer-bank auto-fill for postings with application questions,
+   open the options page (popup's "Manage answer bank & Gemini key" button,
+   or the extension's Details page -> Extension options), add a Gemini API
+   key, and save at least one true question/answer pair. Until both are set,
+   those postings behave exactly as before (`needs-questions`).
 
 To inspect the service worker's logs: `chrome://extensions` → the extension's
 card → **service worker** (under "Inspect views").
@@ -181,15 +268,18 @@ npm test
 Runs the unit test suite (Node's built-in test runner, `node
 --experimental-test-module-mocks --test`) over `lib/dedupe.js`,
 `lib/category-filter.js`, `lib/log.js`, `lib/storage.js`,
-`lib/posting-parser.js`, `lib/apply-eligibility.js`, `lib/activity.js`, and
+`lib/posting-parser.js`, `lib/apply-eligibility.js`, `lib/activity.js`,
+`lib/answer-bank.js`, `lib/gemini-client.js`, `lib/question-matcher.js`, and
 `background/service-worker.js`'s polling orchestration (in-flight guard,
 alarm resync, activity-state transitions) - using an in-memory mock of the
 `chrome.storage.local` and `chrome.alarms` promise APIs, plus `node:test`'s
-module mocking for `lib/feed.js`/`lib/apply.js` (hence the
-`--experimental-test-module-mocks` flag). No live DOM needed since
-DOM-walking is isolated to thin, untested shims in `lib/feed.js`,
-`lib/apply.js`, and `content/overlay.js` that run inside a real tab via
-`chrome.scripting`/the browser's content-script injection.
+module mocking for `lib/feed.js`/`lib/apply.js`/`lib/screening-apply.js`
+(hence the `--experimental-test-module-mocks` flag) and an injectable
+`fetch`/Gemini-call parameter everywhere network calls happen. No live DOM
+or network needed since DOM-walking is isolated to thin, untested shims in
+`lib/feed.js`, `lib/apply.js`, `lib/screening-apply.js`, and
+`content/overlay.js` that run inside a real tab via `chrome.scripting`/the
+browser's content-script injection.
 
 Full live-site DOM interaction (the real feed URL, exact card markup at
 click time) is not something these automated tests can safely cover - see
