@@ -154,6 +154,27 @@ test('matchQuestionsAgainstBank: a non-required question is never sent to Gemini
   assert.equal(results[0].answerText, null);
 });
 
+test('matchQuestionsAgainstBank: a rejected callGemini call is treated as no-match rather than throwing', async () => {
+  const questions = [
+    { text: 'How many years of chatting experience?', required: true },
+    { text: 'Which CRMs have you used?', required: true },
+  ];
+  let call = 0;
+  const callGemini = async () => {
+    call += 1;
+    if (call === 1) throw new Error('gemini-request-failed-503');
+    return '{"matchedAnswerId":"a2","confidence":0.9}';
+  };
+
+  const { results, allRequiredMatched } = await matchQuestionsAgainstBank({ questions, answerBank: ANSWER_BANK, callGemini });
+
+  assert.equal(allRequiredMatched, false);
+  assert.equal(results[0].answerText, null);
+  assert.equal(results[0].matchedAnswerId, null);
+  assert.equal(results[0].confidence, 0);
+  assert.equal(results[1].answerText, 'Infloww, OnlyMonster');
+});
+
 test('matchQuestionsAgainstBank: honors a custom threshold', async () => {
   const questions = [{ text: 'Some question', required: true }];
   const callGemini = async () => '{"matchedAnswerId":"a1","confidence":0.6}';
