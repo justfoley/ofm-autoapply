@@ -39,6 +39,17 @@ test('accepts applied-unconfirmed as a valid outcome', () => {
   assert.equal(entry.outcome, 'applied-unconfirmed');
 });
 
+test('accepts needs-questions as a valid outcome, with its reason', () => {
+  const entry = createLogEntry({
+    posting,
+    outcome: 'needs-questions',
+    timestamp: 't',
+    reason: 'requires-application-questions',
+  });
+  assert.equal(entry.outcome, 'needs-questions');
+  assert.equal(entry.reason, 'requires-application-questions');
+});
+
 test('rejects an outcome outside applied/applied-unconfirmed/needs-manual', () => {
   assert.throws(() => createLogEntry({ posting, outcome: 'bogus' }), /Invalid log outcome/);
 });

@@ -121,7 +121,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 /**
  * One polling cycle: fetch the feed, dedupe against previously-seen postings,
  * filter to checked categories, and attempt to apply. Every matching posting
- * (applied, applied-unconfirmed, or needs-manual - see lib/log.js) is added
+ * (applied, applied-unconfirmed, needs-manual, or needs-questions - see
+ * lib/log.js) is added
  * to seenIds so it is never re-evaluated, even across browser restarts
  * (seenIds lives in chrome.storage.local).
  */

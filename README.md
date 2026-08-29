@@ -31,13 +31,16 @@ confirmed is called out explicitly rather than guessed at.
   jobs page and scrapes it via `chrome.scripting`, since it's a
   client-rendered page with no confirmed public JSON API. Parsing the raw
   scrape into postings is pure and unit-tested (`lib/posting-parser.js`).
-- Apply (`lib/apply.js`): finds the posting's job card and clicks its inline
-  Apply button - that's the complete action. The pre-click eligibility check
-  and post-click outcome interpretation are pure, unit-tested logic
-  (`lib/apply-eligibility.js`).
+- Apply (`lib/apply.js`): a posting whose feed card shows no "questions"/
+  "tests" badge gets its job card's inline Apply button clicked - that's the
+  complete action; one that does show a badge is never clicked at all. The
+  feed-badge preflight gate, pre-click eligibility check, and post-click
+  outcome interpretation (including a defense-in-depth check for a dialog or
+  navigation appearing where a plain immediate-submit was expected) are pure,
+  unit-tested logic (`lib/apply-eligibility.js`).
 - Popup UI (`popup/`) with the master toggle, a live status banner, category
   checkboxes (populated from `state.knownCategories`, not a fixed list), and
-  the activity log, showing three possible outcomes per posting (see below).
+  the activity log, showing four possible outcomes per posting (see below).
 - Live status: `lib/activity.js` tracks what the extension is doing right now
   (idle with a countdown to the next check, checking the feed, or applying to
   a named posting), shared by the popup's status banner and a tab overlay
@@ -72,7 +75,7 @@ to the firstmate repo root (outside this repo - read-only, not committed).
   dump was captured), so the popup's checkbox list is the union of this seed
   plus `state.knownCategories`, which grows automatically as real postings
   are observed - see `background/service-worker.js`.
-- **Apply outcome, three states** (`lib/log.js`, `lib/apply-eligibility.js`):
+- **Apply outcome, four states** (`lib/log.js`, `lib/apply-eligibility.js`):
   - `applied` - clicked, and the DOM confirmed it: the card left the feed, or
     its Apply button became disabled or was relabeled (e.g. "Applied").
   - `applied-unconfirmed` - clicked, but no DOM confirmation was observed.
@@ -81,10 +84,68 @@ to the firstmate repo root (outside this repo - read-only, not committed).
   - `needs-manual` - never clicked, because the extension couldn't safely act
     from the DOM alone: no Apply button on the card, the button already
     looked applied/disabled, or the posting wasn't found on the page at all.
-  Note what this deliberately does **not** gate on: whether a posting looks
-  "hard" to qualify for (tests, screening questions, etc.) - that judgment is
-  server-side and invisible to the client, so it happens after every click,
-  not before it.
+  - `needs-questions` - never safely completed because the posting needs more
+    than one click: either its feed card already carried a "N questions"/"N
+    tests" badge (see below - never clicked at all in this case), or a click
+    that looked eligible unexpectedly surfaced a dialog or navigated away
+    from the feed instead of submitting (`lib/apply-eligibility.js`'s
+    post-click backstop). Distinct from `needs-manual` so the captain can go
+    straight to postings that need *their own answers*, not just a DOM the
+    extension couldn't parse.
+
+  What this still deliberately does **not** gate on: whether a posting looks
+  "hard" to qualify for in a way that's invisible from the DOM (years of
+  experience implied by the role, etc.) - that judgment is server-side. What
+  it now *does* gate on, since it stopped being invisible: whether the
+  posting requires answering application questions or completing tests
+  before/instead of a plain immediate-submit click. The original build
+  believed "submits immediately, no modal, no form" held for every posting,
+  based on one captain-confirmed click on one posting; it does not - see
+  "Application questions and tests" below.
+
+## Application questions and tests
+
+Some postings require answering application questions and/or completing
+tests before (or instead of) the plain immediate-submit Apply click - this
+was not known when the apply flow was first built (see "What was confirmed"
+above) and caused those postings to be silently mishandled rather than
+cleanly skipped. Confirmed:
+
+- Every job card in the feed listing carries a row of small badges alongside
+  its category tags (part-time/full-time, tests, questions, languages,
+  tools), each a `<span>` containing a `tabler-icon-*` svg and plain text
+  (e.g. "2 questions", "1 test") - no `aria-label`, so they're matched by the
+  icon's class name (`tabler-icon-message-question` / `tabler-icon-list-check`
+  - see `lib/feed.js`). A posting's Apply button looks completely identical
+  whether or not it carries these badges, so this is the only pre-click
+  signal available.
+- Confirmed live, logged out, against a public `https://ofmjobs.com/find-jobs/{uuid}`
+  preview page (distinct route from the authenticated `/dashboard/jobs/{uuid}`
+  detail view, same underlying posting): the "questions" badge maps to a
+  real, numbered "Application Questions" list with free-text and
+  multiple-choice-in-prose questions, some flagged "Required". That public
+  preview is read-only (no `<form>`/`<input>`), so it does not show what the
+  real *answer-entry* form looks like once a captain is logged in and
+  actually clicks Apply on one of these.
+- `lib/apply-eligibility.js`'s `canAutoApplyPosting()` gates on the feed
+  badge (`Posting.questionCount`/`testCount`, from `lib/posting-parser.js`)
+  before `lib/apply.js` ever opens a tab for that posting, resolving straight
+  to `needs-questions` with no click attempted. `interpretPostClickState()`
+  also carries a post-click backstop (a `[role="dialog"]` appearing, or the
+  tab navigating away from the feed) for any posting that turns out to need
+  more than one click despite carrying no badge - without it, a click that
+  merely opened a form/navigated to one could be misread as `applied`
+  instead of a false positive.
+- **Still unconfirmed**: what the real, authenticated answer-entry form
+  looks like (inline expansion, modal, or a separate navigated-to page) and
+  whether its fields are plain text inputs or real `<select>`/radio controls
+  for the multiple-choice-style questions - needs one authenticated look
+  before building anything beyond the detect-and-skip behavior above (e.g.
+  reusing the captain's own stored answers to auto-fill and submit).
+  Likewise unconfirmed: what a "tests" (`list-check` badge) requirement
+  actually involves - no live example was found even on the public preview
+  pages sampled, so it's routed into the same `needs-questions` bucket as a
+  conservative fallback rather than assumed to work like a text question.
 
 ## Still open (documented assumptions, not blocking)
 

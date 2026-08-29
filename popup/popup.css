@@ -346,6 +346,11 @@ h2 {
   color: var(--om-slate-text);
 }
 
+.badge.needs-questions {
+  background: #f1e4fb;
+  color: #6b21a8;
+}
+
 .about {
   margin: 4px 2px 0;
 }
